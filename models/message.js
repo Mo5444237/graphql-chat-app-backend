@@ -1,0 +1,35 @@
+const mongoose = require("mongoose");
+const { Schema } = mongoose;
+
+const message = new Schema(
+  {
+    chatId: {
+      type: Schema.Types.ObjectId,
+      ref: "Chat",
+      required: true,
+    },
+    sender: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    content: {
+      type: String,
+      required: true,
+    },
+    type: {
+      type: String,
+      enum: ["text", "image", "file", 'audio', 'video'],
+      default: "text",
+    },
+    readBy: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+  },
+  { timestamps: true }
+);
+
+module.exports = mongoose.model("Message", message);

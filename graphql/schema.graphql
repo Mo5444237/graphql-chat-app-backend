@@ -1,0 +1,88 @@
+type User {
+  _id: ID!
+  name: String!
+  email: String!
+  password: String
+  avatar: String
+  online: Boolean
+  lastSeen: String
+  createdAt: String
+  updatedAt: String
+}
+
+enum MessageType {
+  text
+  image
+  video
+  audio
+  file
+}
+
+type Message {
+  _id: ID!
+  chat: ID!
+  content: String!
+  type: MessageType!
+  sender: User!
+  readBy: [User]!
+  createdAt: String!
+  updatedAt: String!
+}
+
+input MessageInputData {
+  chat: ID!
+  content: String!
+  type: MessageType!
+  sender: ID!
+}
+
+enum ChatType {
+  private
+  group
+}
+
+type Chat {
+  _id: ID!
+  name: String!
+  type: ChatType!
+  lastMessage: Message
+  users: [User]!
+  createdAt: String!
+  updatedAt: String!
+}
+
+input ChatInputData {
+  users: [ID]!
+  name: String!
+}
+
+input CreateUserData {
+  name: String!
+  email: String!
+  password: String!
+  avatar: String
+}
+
+input UserInputData {
+  email: String!
+  password: String!
+}
+
+type AuthData {
+  userId: ID!
+  token: String!
+}
+
+type Query {
+  hello: String
+  getUser: User!
+  getUserChats: [Chat]!
+  getChatMessages(chatId: ID!): [Message]!
+}
+
+type Mutation {
+  login(userInput: UserInputData!): AuthData!
+  createUser(userInput: CreateUserData!): String!
+  createChat(chatInput: ChatInputData!): Chat!
+  sendMessage(messageInput: MessageInputData!): Message!
+}

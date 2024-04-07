@@ -1,0 +1,21 @@
+# Ignore log files
+*.log
+
+# Ignore compiled binaries
+*.exe
+*.dll
+
+# Ignore temporary files
+*.tmp
+
+# Ignore IDE-specific files
+.vscode/
+.idea/
+
+# Ignore node_modules directory
+node_modules/
+build
+npm-debug.log
+.nyc
+.env
+.DS_Store
