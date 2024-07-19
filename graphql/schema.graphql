@@ -1,13 +1,11 @@
 type User {
   _id: ID!
-  name: String!
-  email: String!
+  name: String
+  email: String
   password: String
   avatar: String
   online: Boolean
   lastSeen: String
-  createdAt: String
-  updatedAt: String
 }
 
 enum MessageType {
@@ -20,7 +18,7 @@ enum MessageType {
 
 type Message {
   _id: ID!
-  chat: ID!
+  chatId: ID!
   content: String!
   type: MessageType!
   sender: User!
@@ -30,10 +28,10 @@ type Message {
 }
 
 input MessageInputData {
-  chat: ID!
+  chatId: ID
+  users: [ID!]
   content: String!
   type: MessageType!
-  sender: ID!
 }
 
 enum ChatType {
@@ -46,6 +44,7 @@ type Chat {
   name: String!
   type: ChatType!
   lastMessage: Message
+  unreadMessagesCount: Int
   users: [User]!
   createdAt: String!
   updatedAt: String!
@@ -60,6 +59,7 @@ input CreateUserData {
   name: String!
   email: String!
   password: String!
+  passwordConfirmation: String!
   avatar: String
 }
 
@@ -68,21 +68,56 @@ input UserInputData {
   password: String!
 }
 
+input changePasswordInputData {
+  oldPassword: String!
+  newPassword: String!
+  passwordConfirmation: String!
+}
+scalar Upload
+
+type File {
+  filename: String!
+  mimetype: String!
+  encoding: String!
+}
+
+input editProfileData {
+  name: String!
+  avatar: Upload
+}
+
 type AuthData {
-  userId: ID!
+  user: User!
   token: String!
 }
 
 type Query {
   hello: String
+  #Auth
   getUser: User!
+  refreshToken: AuthData!
+  #Chat
   getUserChats: [Chat]!
+  #Message
   getChatMessages(chatId: ID!): [Message]!
+  getMessageInfo(messageId: ID!): Message!
+  #Contact
+  getContacts: [User]
 }
 
 type Mutation {
+  #Auth
   login(userInput: UserInputData!): AuthData!
   createUser(userInput: CreateUserData!): String!
+  changePassword(userInput: changePasswordInputData!): String!
+  editProfile(userInput: editProfileData!): User!
+  singleUpload(file: Upload!): File!
+  #Chat
   createChat(chatInput: ChatInputData!): Chat!
+  #Message
   sendMessage(messageInput: MessageInputData!): Message!
+  markMessageAsSeen(chatId: ID!): String!
+  #Contact
+  addContact(email: String!): String!
+  deleteContact(userId: ID!): String!
 }

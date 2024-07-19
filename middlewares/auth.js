@@ -1,9 +1,7 @@
-const User = require("../models/user");
-
 const jwt = require("jsonwebtoken");
 
-module.exports = async ({ req, res }) => {
-    const authHeader = req.get("Authorization") || req.get("authorization");
+module.exports = async ({ req, res, io }) => {
+  const authHeader = req.get("Authorization") || req.get("authorization");
   if (!authHeader) {
     req.isAuth = false;
     return { req, res };
@@ -23,5 +21,5 @@ module.exports = async ({ req, res }) => {
   }
   req.userId = decodedToken.userId;
   req.isAuth = true;
-  return { req, res };
+  return { req, res, io };
 };

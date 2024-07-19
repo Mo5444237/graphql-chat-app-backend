@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 const { Schema } = mongoose;
 
-const chat = new Schema(
+const chatSchema = new Schema(
   {
     name: {
       type: String,
@@ -23,8 +23,16 @@ const chat = new Schema(
         ref: "User",
       },
     ],
+    unreadMessagesCount: {
+      type: Map,
+      of: Number,
+      default: {},
+    },
   },
   { timestamps: true }
 );
 
-module.exports = mongoose.model("Chat", chat);
+chatSchema.index({ users: 1 });
+chatSchema.index({ lastMessage: -1 });
+
+module.exports = mongoose.model("Chat", chatSchema);

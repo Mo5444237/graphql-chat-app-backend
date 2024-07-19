@@ -25,6 +25,17 @@ const userSchema = new Schema({
     type: Date,
     default: Date.now(),
   },
+  refreshTokens: [
+    {
+      token: String,
+    },
+  ],
+  contacts: [
+    {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+    },
+  ],
 });
 
 module.exports = mongoose.model("User", userSchema);

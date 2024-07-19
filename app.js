@@ -9,6 +9,7 @@ const { expressMiddleware } = require("@apollo/server/express4");
 const {
   ApolloServerPluginDrainHttpServer,
 } = require("@apollo/server/plugin/drainHttpServer");
+const { graphqlUploadExpress } = require("graphql-upload");
 const http = require("http");
 const cors = require("cors");
 const { readFileSync } = require("fs");
@@ -16,30 +17,36 @@ const resolvers = require("./graphql/rootResolvers.js");
 const mongoose = require("mongoose");
 const auth = require("./middlewares/auth.js");
 
+const typeDefs = readFileSync("./graphql/schema.graphql", "utf8");
+
 dotenv.config();
 const app = express();
 
 app.use(cookieParser());
 app.use(bodyParser.json());
 
-const typeDefs = readFileSync("./graphql/schema.graphql", "utf8");
+app.use(graphqlUploadExpress({ maxFileSize: 10000000, maxFiles: 10 }));
+
 const httpServer = http.createServer(app);
 const io = soketio(httpServer, {
   cors: {
     origin: "*",
   },
-
 });
 
 const server = new ApolloServer({
   typeDefs,
   resolvers,
-  formatError: (formattedError, err) => {
-    console.log(formattedError);
-    const {message, code} = JSON.parse(formattedError.message);
-    return {message: message, status: code};
+  csrfPrevention: true,
+  formatError: (error) => {
+    console.log(error);
+    return {
+      message: error.message,
+      statusCode: error.extensions.code || "INTERNAL_SERVER_ERROR",
+      data: error.extensions.data || null,
+    };
   },
-  plugins: [ApolloServerPluginDrainHttpServer({ httpServer })]
+  plugins: [ApolloServerPluginDrainHttpServer({ httpServer })],
 });
 
 async function startHttp() {
@@ -47,7 +54,7 @@ async function startHttp() {
   app.use(
     "/graphql",
     cors({
-      origin: "*",
+      origin: "http://localhost:5173",
       credentials: true,
     }),
     express.json(),
@@ -76,8 +83,6 @@ async function startServer() {
 startServer();
 
 io.on("connection", (socket) => {
-  console.log("A client connected");
-
   socket.on("joinRoom", (room) => {
     console.log("A client joined room", room);
     socket.join(room);
@@ -85,6 +90,10 @@ io.on("connection", (socket) => {
 
   socket.on("leaveRoom", (room) => {
     socket.leave(room);
+  });
+
+  socket.on("typing", ({ chatId, userId }) => {
+    socket.to(userId).emit("typing", { chatId, userId });
   });
 
   socket.on("disconnect", () => {
