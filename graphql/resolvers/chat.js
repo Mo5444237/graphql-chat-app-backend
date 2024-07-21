@@ -1,6 +1,6 @@
 const { GraphQLError } = require("graphql");
 const Chat = require("../../models/Chat");
-const Message = require("../../models/Message");
+const Message = require("../../models/message");
 
 const chatResolvers = {
   Query: {
@@ -21,7 +21,7 @@ const chatResolvers = {
               path: "lastMessage",
               populate: {
                 path: "sender",
-                name: "name",
+                select: "-password -refreshTokens -__v",
               },
             },
           ])
@@ -30,16 +30,16 @@ const chatResolvers = {
           });
 
         const chats = userChats.map((chat) => {
-          const chatName =
+          const { name, avatar } =
             chat.type === "private" &&
-            chat.users.find((user) => user._id.toString() !== userId)?.name;
+            chat.users.find((user) => user._id.toString() !== userId);
 
           const unreadMessagesCount = chat.unreadMessagesCount.get(userId) || 0;
-
           return {
             ...chat._doc,
             _id: chat._id.toString(),
-            name: chat.type === "private" ? chatName : chat.name,
+            avatar: chat.type === "private" ? avatar : chat.avatar,
+            name: chat.type === "private" ? name : chat.name,
             unreadMessagesCount,
           };
         });

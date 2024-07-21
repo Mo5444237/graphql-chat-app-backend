@@ -15,6 +15,10 @@ const {
   generateRefreshToken,
 } = require("../../utils/generateTokens");
 const { GraphQLError } = require("graphql");
+const {
+  uploadSingleFile,
+  clearImage,
+} = require("../../middlewares/upload-images");
 
 const authResolvers = {
   Query: {
@@ -203,7 +207,7 @@ const authResolvers = {
       }
 
       const errors = await editProfilevalidation(userInput);
-      console.log(req);
+
       if (errors.length !== 0) {
         const error = new GraphQLError("validation failed.");
         error.extensions.code = 422;
@@ -213,29 +217,23 @@ const authResolvers = {
 
       try {
         const user = await User.findById(req.userId);
+        const oldAvatar = user.avatar;
         user.name = name;
         if (avatar) {
-          const avatarUrl = uploadSingleImage("avatars", "profileImg");
-          console.log(avatarUrl);
-          // user.avatar = avatarUrl ?? user.avatar;
+          const imageUrl = await uploadSingleFile(avatar, "chat-app");
+          user.avatar = imageUrl;
         }
         await user.save();
         delete user._doc.password;
         delete user._doc.refreshTokens;
+        if (oldAvatar) {
+          clearImage(oldAvatar, "chat-app");
+        }
 
         return user;
       } catch (error) {
         return new GraphQLError(error);
       }
-    },
-    singleUpload: async (_, { file }) => {
-      const { createReadStream, filename, mimetype, encoding } = await file;
-      console.log("File: " + filename);
-       return {
-         filename,
-         mimetype,
-         encoding,
-       };
     },
   },
 };

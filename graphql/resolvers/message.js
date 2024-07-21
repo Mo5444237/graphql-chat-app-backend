@@ -1,6 +1,6 @@
+const { uploadSingleFile } = require("../../middlewares/upload-images");
 const Chat = require("../../models/Chat");
-const Message = require("../../models/Message");
-const User = require("../../models/user");
+const Message = require("../../models/message");
 const { GraphQLError } = require("graphql");
 
 const messageResolvers = {
@@ -34,7 +34,8 @@ const messageResolvers = {
       }
 
       try {
-        const { chatId, users, content } = messageInput;
+        const { chatId, users, content, caption, type, image } = messageInput;
+        
         let chat;
         chat = await Chat.findById(chatId);
         if (!chat) {
@@ -45,10 +46,17 @@ const messageResolvers = {
           await chat.save();
         }
 
+        let imageUrl;
+        if (type === "image") {
+          imageUrl = await uploadSingleFile(image, "chat-messages");
+        }
+
         const message = new Message({
           chatId: chat._id,
           sender: req.userId,
-          content,
+          content: imageUrl || content,
+          type,
+          caption,
         });
         await message.save();
         await message.populate([

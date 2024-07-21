@@ -23,6 +23,9 @@ const chatSchema = new Schema(
         ref: "User",
       },
     ],
+    avatar: {
+      type: String
+    },
     unreadMessagesCount: {
       type: Map,
       of: Number,
@@ -33,6 +36,5 @@ const chatSchema = new Schema(
 );
 
 chatSchema.index({ users: 1 });
-chatSchema.index({ lastMessage: -1 });
 
 module.exports = mongoose.model("Chat", chatSchema);

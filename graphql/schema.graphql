@@ -1,3 +1,11 @@
+scalar Upload
+
+type File {
+  filename: String!
+  mimetype: String!
+  encoding: String!
+}
+
 type User {
   _id: ID!
   name: String
@@ -19,7 +27,8 @@ enum MessageType {
 type Message {
   _id: ID!
   chatId: ID!
-  content: String!
+  content: String
+  caption: String
   type: MessageType!
   sender: User!
   readBy: [User]!
@@ -32,6 +41,8 @@ input MessageInputData {
   users: [ID!]
   content: String!
   type: MessageType!
+  caption: String
+  image: Upload
 }
 
 enum ChatType {
@@ -46,6 +57,7 @@ type Chat {
   lastMessage: Message
   unreadMessagesCount: Int
   users: [User]!
+  avatar: String
   createdAt: String!
   updatedAt: String!
 }
@@ -72,13 +84,6 @@ input changePasswordInputData {
   oldPassword: String!
   newPassword: String!
   passwordConfirmation: String!
-}
-scalar Upload
-
-type File {
-  filename: String!
-  mimetype: String!
-  encoding: String!
 }
 
 input editProfileData {
@@ -111,7 +116,6 @@ type Mutation {
   createUser(userInput: CreateUserData!): String!
   changePassword(userInput: changePasswordInputData!): String!
   editProfile(userInput: editProfileData!): User!
-  singleUpload(file: Upload!): File!
   #Chat
   createChat(chatInput: ChatInputData!): Chat!
   #Message

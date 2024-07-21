@@ -1,5 +1,7 @@
 const express = require("express");
 const dotenv = require("dotenv");
+dotenv.config();
+
 const bodyParser = require("body-parser");
 const cookieParser = require("cookie-parser");
 const soketio = require("socket.io");
@@ -19,7 +21,6 @@ const auth = require("./middlewares/auth.js");
 
 const typeDefs = readFileSync("./graphql/schema.graphql", "utf8");
 
-dotenv.config();
 const app = express();
 
 app.use(cookieParser());
@@ -52,11 +53,14 @@ const server = new ApolloServer({
 async function startHttp() {
   await server.start();
   app.use(
-    "/graphql",
     cors({
-      origin: "http://localhost:5173",
+      origin: process.env.CLIENT_URL,
       credentials: true,
-    }),
+    })
+  );
+
+  app.use(
+    "/graphql",
     express.json(),
     expressMiddleware(server, {
       context: ({ req, res }) => {
