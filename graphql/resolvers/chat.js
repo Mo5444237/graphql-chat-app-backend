@@ -1,6 +1,8 @@
 const { GraphQLError } = require("graphql");
 const Chat = require("../../models/Chat");
 const Message = require("../../models/message");
+const User = require("../../models/user");
+const { uploadSingleFile } = require("../../middlewares/upload-images");
 
 const chatResolvers = {
   Query: {
@@ -16,7 +18,7 @@ const chatResolvers = {
           users: userId,
         })
           .populate([
-            { path: "users", select: "-password -__v" },
+            { path: "users", select: "-password -refreshTokens -__v" },
             {
               path: "lastMessage",
               populate: {
@@ -81,7 +83,7 @@ const chatResolvers = {
     },
   },
   Mutation: {
-    createChat: async (_, { chatInput }, { req, res }) => {
+    createChat: async (_, { chatInput }, { req, res, io }) => {
       if (!req.isAuth) {
         throw new GraphQLError("Not authenticated", {
           extensions: { code: 401 },
@@ -89,22 +91,176 @@ const chatResolvers = {
       }
       try {
         const { users, name } = chatInput;
-        let chatType = "private";
-        if (users.length > 1) {
-          chatType = "group";
-        }
+        const userId = req.userId;
+        const user = await User.findById(userId);
+
         const chat = new Chat({
           name,
-          users: [...users, req.userId],
-          type: chatType,
+          users: [...users, userId],
+          type: "group",
+          admin: userId,
         });
 
         await chat.save();
 
+        const message = new Message({
+          chatId: chat._id,
+          sender: userId,
+          content: `Created By ${user.name}`,
+          type: "event",
+        });
+        await message.save();
+
+        chat.lastMessage = message;
+        await chat.save();
+
+        chat.users.forEach((user) => {
+          io.to(user.toString()).emit("newMessage", {
+            message,
+          });
+        });
+
         const data = await chat.populate([
-          { path: "users", select: "-password -__v" },
+          { path: "users", select: "-password -refreshTokens -__v" },
+          {
+            path: "lastMessage",
+            populate: {
+              path: "sender",
+              select: "-password -refreshTokens -__v",
+            },
+          },
         ]);
         return data;
+      } catch (error) {
+        return new GraphQLError(error);
+      }
+    },
+    editChat: async (_, { chatInput }, { req, res, io }) => {
+      if (!req.isAuth) {
+        throw new GraphQLError("Not authenticated", {
+          extensions: { code: 401 },
+        });
+      }
+      const userId = req.userId;
+      const { name, avatar, chatId } = chatInput;
+      try {
+        const chat = await Chat.findById(chatId);
+        if (!chat || chat.admin.toString() !== userId) {
+          throw new GraphQLError("Un-authorized", {
+            extensions: { code: 403 },
+          });
+        }
+
+        chat.name = name;
+
+        if (avatar) {
+          const imageUrl = await uploadSingleFile(avatar, "chat-app");
+          chat.avatar = imageUrl;
+        }
+        await chat.save();
+        await chat.populate([
+          { path: "users", select: "-password -refreshTokens -__v" },
+          {
+            path: "lastMessage",
+            populate: {
+              path: "sender",
+              select: "-password -refreshTokens -__v",
+            },
+          },
+        ]);
+        chat.users.forEach((user) => {
+          io.to(user.toString()).emit("chatUpdate", { chat });
+        });
+        return chat;
+      } catch (error) {
+        return new GraphQLError(error);
+      }
+    },
+    addUserToChat: async (_, { chatInput }, { req, res, io }) => {
+      if (!req.isAuth) {
+        throw new GraphQLError("Not authenticated", {
+          extensions: { code: 401 },
+        });
+      }
+
+      const { chatId, userId } = chatInput;
+      try {
+        const chat = await Chat.findById(chatId);
+        if (!chat || chat.admin.toString() !== req.userId) {
+          throw new GraphQLError("Un-authorized", {
+            extensions: { code: 403 },
+          });
+        }
+
+        const user = await User.findById(userId);
+        if (!user) {
+          throw new GraphQLError("User Not Found", {
+            extensions: { code: 404 },
+          });
+        }
+
+        chat.users.push(user._id.toString());
+
+        const message = new Message({
+          chatId: chat._id,
+          sender: userId,
+          content: `${user.email} Joined group`,
+          type: "event",
+        });
+        await message.save();
+
+        chat.lastMessage = message;
+        await chat.save();
+
+        chat.users.forEach((user) => {
+          io.to(user.toString()).emit("newMessage", {
+            message,
+          });
+        });
+        return "User Added Successfully";
+      } catch (error) {
+        return new GraphQLError(error);
+      }
+    },
+    deleteUserFromChat: async (_, { chatInput }, { req, res, io }) => {
+      if (!req.isAuth) {
+        throw new GraphQLError("Not authenticated", {
+          extensions: { code: 401 },
+        });
+      }
+
+      const { chatId, userId } = chatInput;
+      try {
+        const user = await User.findById(userId);
+
+        if (!user) {
+          throw new GraphQLError("User Not Found", {
+            extensions: { code: 404 },
+          });
+        }
+
+        const chat = await Chat.findById(chatId);
+        if (!chat || chat.admin.toString() !== req.userId) {
+          throw new GraphQLError("Un-authorized", {
+            extensions: { code: 403 },
+          });
+        }
+
+        await chat.updateOne({
+          $pull: { users: userId },
+        });
+
+        const message = new Message({
+          chatId: chat._id,
+          sender: userId,
+          content: `${user.email} Was removed from the group`,
+          type: "event",
+        });
+        await message.save();
+
+        chat.lastMessage = message;
+        await chat.save();
+        return "User Deleted Successfully";
       } catch (error) {
         return new GraphQLError(error);
       }

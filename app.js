@@ -96,8 +96,9 @@ io.on("connection", (socket) => {
     socket.leave(room);
   });
 
-  socket.on("typing", ({ chatId, userId }) => {
-    socket.to(userId).emit("typing", { chatId, userId });
+  socket.on("typing", ({ chatId, userId, user }) => {
+    console.log(user);
+    socket.to(userId).emit("typing", { chatId, userId, user });
   });
 
   socket.on("disconnect", () => {

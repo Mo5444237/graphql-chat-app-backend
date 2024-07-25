@@ -31,6 +31,10 @@ const chatSchema = new Schema(
       of: Number,
       default: {},
     },
+    admin: {
+      type: Schema.Types.ObjectId,
+      ref: "User"
+    }
   },
   { timestamps: true }
 );

@@ -34,8 +34,9 @@ const messageResolvers = {
       }
 
       try {
-        const { chatId, users, content, caption, type, image } = messageInput;
-        
+        const { chatId, users, content, caption, type, image, createdAt } =
+          messageInput;
+
         let chat;
         chat = await Chat.findById(chatId);
         if (!chat) {
@@ -57,6 +58,7 @@ const messageResolvers = {
           content: imageUrl || content,
           type,
           caption,
+          createdAt,
         });
         await message.save();
         await message.populate([
@@ -74,13 +76,10 @@ const messageResolvers = {
               (chat.unreadMessagesCount.get(user.toString()) || 0) + 1
             );
           }
-        });
-        await chat.save();
-
-        // Emit new message event to chat users
-        chat.users.forEach((user) => {
+          // Emit new message event to chat users
           io.to(user.toString()).emit("newMessage", { message });
         });
+        await chat.save();
         return message;
       } catch (error) {
         return new GraphQLError(error);

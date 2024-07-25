@@ -19,7 +19,7 @@ const messageSchema = new Schema(
     },
     type: {
       type: String,
-      enum: ["text", "image", "file", "audio", "video"],
+      enum: ["text", "image", "file", "audio", "video", "event"],
       default: "text",
     },
     caption: {
