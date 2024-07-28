@@ -11,13 +11,14 @@ const contactResolvers = {
       }
 
       try {
-        const currentUser = await User.findById(req.userId).populate([
-          {
-            path: "contacts",
-            select: "-password -__V -refreshTokens",
-          },
-        ]);
-        const contacts = currentUser.contacts;
+        const currentUser = await User.findById(req.userId).populate({
+          path: "contacts.userId",
+          select: "name avatar",
+        });
+        let contacts = currentUser.contacts;
+        contacts = contacts.map((contact) => {
+          return { ...contact.userId._doc, name: contact.name };
+        });
         return contacts;
       } catch (error) {
         return new GraphQLError(error);
@@ -25,7 +26,7 @@ const contactResolvers = {
     },
   },
   Mutation: {
-    addContact: async (_, { email }, { req }) => {
+    addContact: async (_, { contactInput }, { req }) => {
       if (!req.isAuth) {
         throw new GraphQLError("Not authenticated", {
           extensions: { code: 401 },
@@ -33,6 +34,7 @@ const contactResolvers = {
       }
 
       try {
+        const { email, name } = contactInput;
         const newContact = await User.findOne({
           email: email,
           _id: { $ne: req.userId },
@@ -43,12 +45,18 @@ const contactResolvers = {
           });
         }
         const currentUser = await User.findById(req.userId);
-        if (currentUser.contacts.includes(newContact._id.toString())) {
+        const contactExists = currentUser.contacts.some((contact) =>
+          contact.userId.equals(newContact._id)
+        );
+        if (contactExists) {
           throw new GraphQLError("Contact already exists", {
             extensions: { code: 400 },
           });
         }
-        currentUser.contacts.push(newContact._id);
+        currentUser.contacts.push({
+          userId: newContact._id,
+          name: name || newContact.name,
+        });
         await currentUser.save();
         return "New contact was added.";
       } catch (error) {
@@ -69,6 +77,33 @@ const contactResolvers = {
         );
         await currentUser.save();
         return "Contact was deleted successfully.";
+      } catch (error) {
+        return new GraphQLError(error);
+      }
+    },
+    editContact: async (_, { contactInput }, { req }) => {
+      if (!req.isAuth) {
+        throw new GraphQLError("Not authenticated", {
+          extensions: { code: 401 },
+        });
+      }
+
+      try {
+        const userId = req.userId;
+        const { contactId, name } = contactInput;
+        const updatedContact = await User.updateOne(
+          {
+            _id: userId,
+            "contacts.userId": contactId,
+          },
+          { $set: { "contacts.$.name": name } }
+        );
+        if (!updatedContact.matchedCount) {
+          throw new GraphQLError("Contact not found", {
+            extensions: { code: 404 },
+          });
+        }
+        return "Contact Updated Successfully";
       } catch (error) {
         return new GraphQLError(error);
       }

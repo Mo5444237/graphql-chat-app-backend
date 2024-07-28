@@ -110,6 +110,16 @@ type AuthData {
   token: String!
 }
 
+input contactInputData {
+  email: String!
+  name: String
+}
+
+input contactEditData {
+  name: String!
+  contactId: ID!
+}
+
 type Query {
   hello: String
   #Auth
@@ -139,6 +149,7 @@ type Mutation {
   sendMessage(messageInput: MessageInputData!): Message!
   markMessageAsSeen(chatId: ID!): String!
   #Contact
-  addContact(email: String!): String!
+  addContact(contactInput: contactInputData!): String!
   deleteContact(userId: ID!): String!
+  editContact(contactInput: contactEditData!): String!
 }

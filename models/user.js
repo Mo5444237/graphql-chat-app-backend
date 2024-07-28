@@ -32,8 +32,13 @@ const userSchema = new Schema({
   ],
   contacts: [
     {
-      type: Schema.Types.ObjectId,
-      ref: "User",
+      userId: {
+        type: Schema.Types.ObjectId,
+        ref: "User",
+      },
+      name: {
+        type: String,
+      },
     },
   ],
 });

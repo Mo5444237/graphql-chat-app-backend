@@ -97,7 +97,6 @@ io.on("connection", (socket) => {
   });
 
   socket.on("typing", ({ chatId, userId, user }) => {
-    console.log(user);
     socket.to(userId).emit("typing", { chatId, userId, user });
   });
 
