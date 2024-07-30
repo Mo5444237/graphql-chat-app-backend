@@ -32,7 +32,11 @@ const authResolvers = {
         const { userId } = req;
         const user = await User.findById(userId, {
           password: 0,
+          refreshTokens: 0,
           __v: 0,
+        }).populate({
+          path: "blockedUsers",
+          select: "_id name",
         });
         if (!user) {
           return new GraphQLError("User not found", {
@@ -231,6 +235,45 @@ const authResolvers = {
         }
 
         return user;
+      } catch (error) {
+        return new GraphQLError(error);
+      }
+    },
+    blockUser: async (_, { userId }, { req }) => {
+      if (!req.isAuth) {
+        return new GraphQLError("un-authenticated", {
+          extensions: { code: 401 },
+        });
+      }
+
+      try {
+        const currentUser = await User.findById(req.userId);
+        const userToBeBlocked = await User.findById(userId);
+
+        if (!userToBeBlocked) {
+          return new GraphQLError("User not found", {
+            extensions: { code: 404 },
+          });
+        }
+        if (!currentUser.blockedUsers.includes(userId)) {
+          currentUser.blockedUsers.push(userId);
+          await currentUser.save();
+        }
+        return "User Unblocked Successfully";
+      } catch (error) {
+        return new GraphQLError(error);
+      }
+    },
+    unblockUser: async (_, { userId }, { req }) => {
+      try {
+        const currentUser = await User.findById(req.userId);
+        if (currentUser.blockedUsers.includes(userId)) {
+          currentUser.blockedUsers = currentUser.blockedUsers.filter(
+            (id) => id.toString() !== userId
+          );
+          await currentUser.save();
+          return "User Blocked Successfully";
+        }
       } catch (error) {
         return new GraphQLError(error);
       }

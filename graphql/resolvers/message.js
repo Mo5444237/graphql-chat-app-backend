@@ -1,3 +1,4 @@
+const checkBlocked = require("../../middlewares/checkBlocked");
 const { uploadSingleFile } = require("../../middlewares/upload-images");
 const Chat = require("../../models/Chat");
 const Message = require("../../models/message");
@@ -39,6 +40,7 @@ const messageResolvers = {
 
         let chat;
         chat = await Chat.findById(chatId);
+
         if (!chat) {
           chat = new Chat({
             name: "private",
@@ -52,6 +54,15 @@ const messageResolvers = {
           imageUrl = await uploadSingleFile(image, "chat-messages");
         }
 
+        let isBlocked;
+        if (chat && chat.type === "private") {
+          const senderId = req.userId;
+          const receiverId = chat.users.filter(
+            (id) => id.toString() !== senderId
+          )[0];
+          isBlocked = await checkBlocked(senderId, receiverId);
+        }
+
         const message = new Message({
           chatId: chat._id,
           sender: req.userId,
@@ -59,6 +70,7 @@ const messageResolvers = {
           type,
           caption,
           createdAt,
+          delivered: !isBlocked,
         });
         await message.save();
         await message.populate([
@@ -68,16 +80,22 @@ const messageResolvers = {
           },
         ]);
 
-        chat.lastMessage = message;
+        if (!isBlocked) {
+          chat.lastMessage = message;
+        }
+
         chat.users.forEach((user) => {
-          if (user.toString() !== req.userId) {
+          const privateAndBlockedChat = chat.type === "private" && isBlocked;
+          if (user.toString() !== req.userId && !privateAndBlockedChat) {
             chat.unreadMessagesCount.set(
               user.toString(),
               (chat.unreadMessagesCount.get(user.toString()) || 0) + 1
             );
           }
           // Emit new message event to chat users
-          io.to(user.toString()).emit("newMessage", { message });
+          if (!isBlocked || user.toString() === req.userId) {
+            io.to(user.toString()).emit("newMessage", { message });
+          }
         });
         await chat.save();
         return message;

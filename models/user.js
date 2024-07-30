@@ -41,6 +41,12 @@ const userSchema = new Schema({
       },
     },
   ],
+  blockedUsers: [
+    {
+      type: Schema.Types.ObjectId,
+      ref: "User"
+    }
+  ]
 });
 
 module.exports = mongoose.model("User", userSchema);

@@ -3,6 +3,7 @@ const Chat = require("../../models/Chat");
 const Message = require("../../models/message");
 const User = require("../../models/user");
 const { uploadSingleFile } = require("../../middlewares/upload-images");
+const checkBlocked = require("../../middlewares/checkBlocked");
 
 const chatResolvers = {
   Query: {
@@ -31,10 +32,17 @@ const chatResolvers = {
             lastMessage: -1,
           });
 
-        const chats = userChats.map((chat) => {
-          const { name, avatar } =
+        const chats = userChats.map(async (chat) => {
+          let { _id, name, avatar } =
             chat.type === "private" &&
             chat.users.find((user) => user._id.toString() !== userId);
+
+          const isBlocked =
+            chat.type === "private" &&
+            (await checkBlocked(userId, _id.toString()));
+          if (isBlocked) {
+            avatar = null;
+          }
 
           const unreadMessagesCount = chat.unreadMessagesCount.get(userId) || 0;
           return {
@@ -65,7 +73,10 @@ const chatResolvers = {
           });
         }
 
-        const chatMessage = await Message.find({ chatId: chatId })
+        const chatMessages = await Message.find({
+          chatId: chatId,
+          $or: [{ delivered: true }, { sender: req.userId }],
+        })
           .sort({
             createdAt: 1,
           })
@@ -76,7 +87,7 @@ const chatResolvers = {
             },
             { path: "readBy", select: "name" },
           ]);
-        return chatMessage;
+        return chatMessages;
       } catch (error) {
         return new GraphQLError(error);
       }

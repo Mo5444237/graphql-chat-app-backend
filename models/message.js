@@ -7,11 +7,13 @@ const messageSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: "Chat",
       required: true,
+      index: true,
     },
     sender: {
       type: Schema.Types.ObjectId,
       ref: "User",
       required: true,
+      index: true,
     },
     content: {
       type: String,
@@ -24,6 +26,10 @@ const messageSchema = new Schema(
     },
     caption: {
       type: String,
+    },
+    delivered: {
+      type: Boolean,
+      default: true,
     },
     readBy: [
       {

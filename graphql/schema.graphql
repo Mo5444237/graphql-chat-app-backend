@@ -14,6 +14,7 @@ type User {
   avatar: String
   online: Boolean
   lastSeen: String
+  blockedUsers: [User!]
 }
 
 enum MessageType {
@@ -140,6 +141,8 @@ type Mutation {
   createUser(userInput: CreateUserData!): String!
   changePassword(userInput: changePasswordInputData!): String!
   editProfile(userInput: editProfileData!): User!
+  blockUser(userId: ID!): String!
+  unblockUser(userId: ID!): String!
   #Chat
   createChat(chatInput: ChatInputData!): Chat!
   editChat(chatInput: EditChatInputData!): Chat!
