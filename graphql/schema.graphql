@@ -82,6 +82,11 @@ input EditChatUsersInputData {
   userId: ID!
 }
 
+input AddUsersInputData {
+  chatId: ID!
+  userIds: [ID!]!
+}
+
 input CreateUserData {
   name: String!
   email: String!
@@ -128,8 +133,9 @@ type Query {
   refreshToken: AuthData!
   #Chat
   getUserChats: [Chat]!
-  #Message
   getChatMessages(chatId: ID!): [Message]!
+  getChatMedia(chatId: ID!): [Message]!
+  #Message
   getMessageInfo(messageId: ID!): Message!
   #Contact
   getContacts: [User]
@@ -141,12 +147,12 @@ type Mutation {
   createUser(userInput: CreateUserData!): String!
   changePassword(userInput: changePasswordInputData!): String!
   editProfile(userInput: editProfileData!): User!
-  blockUser(userId: ID!): String!
-  unblockUser(userId: ID!): String!
+  blockUser(userId: ID!): [User]!
+  unblockUser(userId: ID!): [User]!
   #Chat
   createChat(chatInput: ChatInputData!): Chat!
   editChat(chatInput: EditChatInputData!): Chat!
-  addUserToChat(chatInput: EditChatUsersInputData!): String!
+  addUsersToChat(chatInput: AddUsersInputData!): String!
   deleteUserFromChat(chatInput: EditChatUsersInputData!): String!
   #Message
   sendMessage(messageInput: MessageInputData!): Message!

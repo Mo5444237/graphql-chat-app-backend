@@ -5,6 +5,10 @@ dotenv.config();
 const bodyParser = require("body-parser");
 const cookieParser = require("cookie-parser");
 const soketio = require("socket.io");
+const http = require("http");
+const cors = require("cors");
+const { readFileSync } = require("fs");
+const mongoose = require("mongoose");
 
 const { ApolloServer } = require("@apollo/server");
 const { expressMiddleware } = require("@apollo/server/express4");
@@ -12,22 +16,13 @@ const {
   ApolloServerPluginDrainHttpServer,
 } = require("@apollo/server/plugin/drainHttpServer");
 const { graphqlUploadExpress } = require("graphql-upload");
-const http = require("http");
-const cors = require("cors");
-const { readFileSync } = require("fs");
+
 const resolvers = require("./graphql/rootResolvers.js");
-const mongoose = require("mongoose");
 const auth = require("./middlewares/auth.js");
 
 const typeDefs = readFileSync("./graphql/schema.graphql", "utf8");
 
 const app = express();
-
-app.use(cookieParser());
-app.use(bodyParser.json());
-
-app.use(graphqlUploadExpress({ maxFileSize: 10000000, maxFiles: 10 }));
-
 const httpServer = http.createServer(app);
 const io = soketio(httpServer, {
   cors: {
@@ -35,7 +30,11 @@ const io = soketio(httpServer, {
   },
 });
 
-const server = new ApolloServer({
+app.use(cookieParser());
+app.use(bodyParser.json());
+app.use(graphqlUploadExpress({ maxFileSize: 10000000, maxFiles: 10 }));
+
+const apolloServer = new ApolloServer({
   typeDefs,
   resolvers,
   csrfPrevention: true,
@@ -50,8 +49,8 @@ const server = new ApolloServer({
   plugins: [ApolloServerPluginDrainHttpServer({ httpServer })],
 });
 
-async function startHttp() {
-  await server.start();
+async function startApolloServer() {
+  await apolloServer.start();
   app.use(
     cors({
       origin: process.env.CLIENT_URL,
@@ -62,7 +61,7 @@ async function startHttp() {
   app.use(
     "/graphql",
     express.json(),
-    expressMiddleware(server, {
+    expressMiddleware(apolloServer, {
       context: ({ req, res }) => {
         auth({ req, res });
         return { req, res, io };
@@ -70,9 +69,8 @@ async function startHttp() {
     })
   );
 }
-startHttp();
 
-async function startServer() {
+async function connectDatabaseAndStartServer() {
   try {
     await mongoose.connect(process.env.DATABASE_URI);
     console.log("MongoDB connected");
@@ -84,23 +82,27 @@ async function startServer() {
   }
 }
 
-startServer();
+function initializeSocketIO() {
+  io.on("connection", (socket) => {
+    socket.on("joinRoom", (room) => {
+      console.log("A client joined room", room);
+      socket.join(room);
+    });
 
-io.on("connection", (socket) => {
-  socket.on("joinRoom", (room) => {
-    console.log("A client joined room", room);
-    socket.join(room);
-  });
+    socket.on("leaveRoom", (room) => {
+      socket.leave(room);
+    });
 
-  socket.on("leaveRoom", (room) => {
-    socket.leave(room);
-  });
+    socket.on("typing", ({ chatId, userId, user }) => {
+      socket.to(userId).emit("typing", { chatId, userId, user });
+    });
 
-  socket.on("typing", ({ chatId, userId, user }) => {
-    socket.to(userId).emit("typing", { chatId, userId, user });
+    socket.on("disconnect", () => {
+      console.log("A client disconnected");
+    });
   });
+}
 
-  socket.on("disconnect", () => {
-    console.log("A client disconnected");
-  });
-});
+startApolloServer();
+connectDatabaseAndStartServer();
+initializeSocketIO();

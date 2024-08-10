@@ -3,15 +3,14 @@ const { uploadSingleFile } = require("../../middlewares/upload-images");
 const Chat = require("../../models/Chat");
 const Message = require("../../models/message");
 const { GraphQLError } = require("graphql");
+const { isAuthenticated } = require("../../utils/auth");
+const { findChatById } = require("../../utils/chat");
 
 const messageResolvers = {
   Query: {
     getMessageInfo: async (_, { messageId }, { req, res }) => {
-      if (!req.isAuth) {
-        throw new GraphQLError("Not authenticated", {
-          extensions: { code: 401 },
-        });
-      }
+      isAuthenticated(req);
+
       try {
         const message = await Message.findOne({
           _id: messageId,
@@ -20,6 +19,7 @@ const messageResolvers = {
           path: "sender",
           select: "-password -__v",
         });
+
         return message;
       } catch (error) {
         return new GraphQLError(error);
@@ -28,20 +28,18 @@ const messageResolvers = {
   },
   Mutation: {
     sendMessage: async (_, { messageInput }, { req, res, io }) => {
-      if (!req.isAuth) {
-        throw new GraphQLError("Not authenticated", {
-          extensions: { code: 401 },
-        });
-      }
+      isAuthenticated(req);
 
       try {
         const { chatId, users, content, caption, type, image, createdAt } =
           messageInput;
 
         let chat;
+        let isFirstMessage;
         chat = await Chat.findById(chatId);
 
         if (!chat) {
+          isFirstMessage = true;
           chat = new Chat({
             name: "private",
             users: [...users],
@@ -73,6 +71,7 @@ const messageResolvers = {
           delivered: !isBlocked,
         });
         await message.save();
+
         await message.populate([
           {
             path: "sender",
@@ -94,32 +93,26 @@ const messageResolvers = {
           }
           // Emit new message event to chat users
           if (!isBlocked || user.toString() === req.userId) {
-            io.to(user.toString()).emit("newMessage", { message });
+            io.to(user.toString()).emit("newMessage", {
+              message,
+              data: isFirstMessage ? chat : null,
+            });
           }
         });
         await chat.save();
+
         return message;
       } catch (error) {
         return new GraphQLError(error);
       }
     },
     markMessageAsSeen: async (_, { chatId }, { req, res }) => {
-      if (!req.isAuth) {
-        throw new GraphQLError("Not authenticated", {
-          extensions: { code: 401 },
-        });
-      }
+      isAuthenticated(req);
 
       try {
         const userId = req.userId;
 
-        const chat = await Chat.findById(chatId);
-
-        if (!chat) {
-          throw new GraphQLError("Chat not found", {
-            extensions: { code: 404 },
-          });
-        }
+        const chat = await findChatById(chatId, userId);
 
         await Message.updateMany(
           { chatId, readBy: { $ne: userId } },
@@ -128,6 +121,7 @@ const messageResolvers = {
 
         chat.unreadMessagesCount.set(userId, 0);
         await chat.save();
+
         return "Messages marked as seen";
       } catch (error) {
         return new GraphQLError(error);

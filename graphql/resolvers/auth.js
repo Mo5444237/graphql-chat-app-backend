@@ -1,3 +1,5 @@
+const { GraphQLError } = require("graphql");
+
 const User = require("../../models/user");
 
 const bcrypt = require("bcryptjs");
@@ -14,21 +16,19 @@ const {
   generateAccessToken,
   generateRefreshToken,
 } = require("../../utils/generateTokens");
-const { GraphQLError } = require("graphql");
+
 const {
   uploadSingleFile,
   clearImage,
 } = require("../../middlewares/upload-images");
+const { isAuthenticated } = require("../../utils/auth");
 
 const authResolvers = {
   Query: {
     getUser: async (_, __, { req, res }) => {
+      isAuthenticated(req);
+
       try {
-        if (!req.isAuth) {
-          return new GraphQLError("un-authenticated", {
-            extensions: { code: 401 },
-          });
-        }
         const { userId } = req;
         const user = await User.findById(userId, {
           password: 0,
@@ -38,11 +38,13 @@ const authResolvers = {
           path: "blockedUsers",
           select: "_id name",
         });
+
         if (!user) {
           return new GraphQLError("User not found", {
             extensions: { code: 404 },
           });
         }
+
         return user;
       } catch (error) {
         return new GraphQLError(error);
@@ -51,6 +53,7 @@ const authResolvers = {
     refreshToken: async (_, __, { req, res }) => {
       try {
         const refreshToken = req.cookies["refresh-token"];
+
         const decoded = jwt.verify(
           refreshToken,
           process.env.REFRESH_TOKEN_SECRET
@@ -66,7 +69,9 @@ const authResolvers = {
             extensions: { code: 401 },
           });
         }
+
         const accessToken = generateAccessToken(user._id.toString());
+
         return { user: user, token: accessToken };
       } catch (error) {
         return new GraphQLError(error);
@@ -74,7 +79,7 @@ const authResolvers = {
     },
   },
   Mutation: {
-    login: async (parent, { userInput }, { req, res }, info) => {
+    login: async (_, { userInput }, { req, res }) => {
       const { email, password } = userInput;
 
       const errors = await loginValidations(userInput);
@@ -109,6 +114,7 @@ const authResolvers = {
 
         const accessToken = generateAccessToken(user._id.toString());
         const refreshToken = generateRefreshToken(user._id.toString());
+
         user.refreshTokens.push({ token: refreshToken });
         await user.save();
 
@@ -151,6 +157,7 @@ const authResolvers = {
         }
 
         const hashedPassword = await bcrypt.hash(password, 12);
+
         const user = new User({
           name,
           email,
@@ -166,11 +173,7 @@ const authResolvers = {
     changePassword: async (_, { userInput }, { req, res }) => {
       const { oldPassword, newPassword } = userInput;
 
-      if (!req.isAuth) {
-        return new GraphQLError("un-authenticated", {
-          extensions: { code: 401 },
-        });
-      }
+      isAuthenticated(req);
 
       const errors = await newPasswordValidation(userInput);
 
@@ -195,6 +198,7 @@ const authResolvers = {
         }
         const hashedPassword = await bcrypt.hash(newPassword, 12);
         user.password = hashedPassword;
+
         await user.save();
         return "password changed successfully";
       } catch (error) {
@@ -204,11 +208,7 @@ const authResolvers = {
     editProfile: async (_, { userInput }, { req, res }) => {
       const { name, avatar } = userInput;
 
-      if (!req.isAuth) {
-        return new GraphQLError("un-authenticated", {
-          extensions: { code: 401 },
-        });
-      }
+      isAuthenticated(req);
 
       const errors = await editProfilevalidation(userInput);
 
@@ -223,13 +223,16 @@ const authResolvers = {
         const user = await User.findById(req.userId);
         const oldAvatar = user.avatar;
         user.name = name;
+
         if (avatar) {
           const imageUrl = await uploadSingleFile(avatar, "chat-app");
           user.avatar = imageUrl;
         }
+
         await user.save();
         delete user._doc.password;
         delete user._doc.refreshTokens;
+
         if (oldAvatar) {
           clearImage(oldAvatar, "chat-app");
         }
@@ -240,11 +243,7 @@ const authResolvers = {
       }
     },
     blockUser: async (_, { userId }, { req }) => {
-      if (!req.isAuth) {
-        return new GraphQLError("un-authenticated", {
-          extensions: { code: 401 },
-        });
-      }
+      isAuthenticated(req);
 
       try {
         const currentUser = await User.findById(req.userId);
@@ -255,11 +254,18 @@ const authResolvers = {
             extensions: { code: 404 },
           });
         }
+
         if (!currentUser.blockedUsers.includes(userId)) {
           currentUser.blockedUsers.push(userId);
           await currentUser.save();
+
+          await currentUser.populate({
+            path: "blockedUsers",
+            select: "_id name",
+          });
         }
-        return "User Unblocked Successfully";
+
+        return currentUser.blockedUsers;
       } catch (error) {
         return new GraphQLError(error);
       }
@@ -267,12 +273,19 @@ const authResolvers = {
     unblockUser: async (_, { userId }, { req }) => {
       try {
         const currentUser = await User.findById(req.userId);
+
         if (currentUser.blockedUsers.includes(userId)) {
           currentUser.blockedUsers = currentUser.blockedUsers.filter(
             (id) => id.toString() !== userId
           );
           await currentUser.save();
-          return "User Blocked Successfully";
+
+          await currentUser.populate({
+            path: "blockedUsers",
+            select: "_id name",
+          });
+
+          return currentUser.blockedUsers;
         }
       } catch (error) {
         return new GraphQLError(error);
