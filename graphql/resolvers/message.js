@@ -1,6 +1,6 @@
 const checkBlocked = require("../../middlewares/checkBlocked");
 const { uploadSingleFile } = require("../../middlewares/upload-images");
-const Chat = require("../../models/Chat");
+const Chat = require("../../models/chat");
 const Message = require("../../models/message");
 const { GraphQLError } = require("graphql");
 const { isAuthenticated } = require("../../utils/auth");

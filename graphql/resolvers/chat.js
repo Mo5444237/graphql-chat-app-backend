@@ -1,5 +1,5 @@
 const { GraphQLError } = require("graphql");
-const Chat = require("../../models/Chat");
+const Chat = require("../../models/chat");
 const Message = require("../../models/message");
 const User = require("../../models/user");
 const { uploadSingleFile } = require("../../middlewares/upload-images");
