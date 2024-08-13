@@ -29,7 +29,7 @@ const app = express();
 const httpServer = http.createServer(app);
 const io = soketio(httpServer, {
   cors: {
-    origin: "*",
+    origin: process.env.CLIENT_URL,
   },
 });
 
