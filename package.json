@@ -9,6 +9,9 @@
     "dev": "nodemon app.js"
   },
   "author": "Mohamed ibrahim",
+  "engines": {
+    "node": "18.16.1"
+  },
   "license": "ISC",
   "devDependencies": {
     "nodemon": "^3.1.0"
