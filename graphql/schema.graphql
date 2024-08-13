@@ -149,6 +149,7 @@ type Mutation {
   editProfile(userInput: editProfileData!): User!
   blockUser(userId: ID!): [User]!
   unblockUser(userId: ID!): [User]!
+  logout: ID!
   #Chat
   createChat(chatInput: ChatInputData!): Chat!
   editChat(chatInput: EditChatInputData!): Chat!

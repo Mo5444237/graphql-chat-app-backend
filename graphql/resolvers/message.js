@@ -79,21 +79,28 @@ const messageResolvers = {
           },
         ]);
 
+        await chat.populate([
+          {
+            path: "users",
+            select: "_id name avatar",
+          },
+        ]);
+
         if (!isBlocked) {
           chat.lastMessage = message;
         }
 
         chat.users.forEach((user) => {
           const privateAndBlockedChat = chat.type === "private" && isBlocked;
-          if (user.toString() !== req.userId && !privateAndBlockedChat) {
+          if (user._id.toString() !== req.userId && !privateAndBlockedChat) {
             chat.unreadMessagesCount.set(
-              user.toString(),
-              (chat.unreadMessagesCount.get(user.toString()) || 0) + 1
+              user._id.toString(),
+              (chat.unreadMessagesCount.get(user._id.toString()) || 0) + 1
             );
           }
           // Emit new message event to chat users
-          if (!isBlocked || user.toString() === req.userId) {
-            io.to(user.toString()).emit("newMessage", {
+          if (!isBlocked || user._id.toString() === req.userId) {
+            io.to(user._id.toString()).emit("newMessage", {
               message,
               data: isFirstMessage ? chat : null,
             });

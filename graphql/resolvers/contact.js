@@ -10,14 +10,13 @@ const contactResolvers = {
       try {
         const currentUser = await User.findById(req.userId).populate({
           path: "contacts.userId",
-          select: "name avatar",
+          select: "name avatar online lastSeen",
         });
 
         let contacts = currentUser.contacts;
         contacts = contacts.map((contact) => {
           return { ...contact.userId._doc, name: contact.name };
         });
-
         return contacts;
       } catch (error) {
         return new GraphQLError(error);

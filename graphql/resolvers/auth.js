@@ -291,6 +291,27 @@ const authResolvers = {
         return new GraphQLError(error);
       }
     },
+    logout: async (_, __, { req, res }) => {
+      try {
+        const userId = req.userId;
+        const refreshToken = req.cookies.refreshToken;
+
+        await User.updateOne(
+          { _id: userId },
+          { $pull: { refreshTokens: { token: refreshToken } } }
+        );
+
+        res.clearCookie("refreshToken", {
+          httpOnly: true,
+          secure: true,
+          sameSite: "None",
+        });
+
+        return userId;
+      } catch (error) {
+        return new GraphQLError(error);
+      }
+    },
   },
 };
 

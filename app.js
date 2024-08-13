@@ -9,6 +9,8 @@ const http = require("http");
 const cors = require("cors");
 const { readFileSync } = require("fs");
 const mongoose = require("mongoose");
+const jwt = require("jsonwebtoken");
+const User = require("./models/user");
 
 const { ApolloServer } = require("@apollo/server");
 const { expressMiddleware } = require("@apollo/server/express4");
@@ -83,7 +85,10 @@ async function connectDatabaseAndStartServer() {
 }
 
 function initializeSocketIO() {
-  io.on("connection", (socket) => {
+  io.on("connection", async (socket) => {
+    let token = socket.handshake.auth.token;
+    let userId;
+
     socket.on("joinRoom", (room) => {
       console.log("A client joined room", room);
       socket.join(room);
@@ -97,8 +102,45 @@ function initializeSocketIO() {
       socket.to(userId).emit("typing", { chatId, userId, user });
     });
 
-    socket.on("disconnect", () => {
-      console.log("A client disconnected");
+    if (token) {
+      try {
+        const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+        userId = decodedToken.userId;
+
+        const user = await User.findByIdAndUpdate(
+          userId,
+          { online: true },
+          { new: true }
+        );
+
+        socket.broadcast.emit("userStatusChanged", {
+          userId: userId,
+          online: true,
+        });
+        console.log("Client connected: " + userId);
+      } catch (error) {
+        console.log(error);
+      }
+    }
+
+    socket.on("disconnect", async () => {
+      try {
+        const lastSeen = Date.now();
+        const user = await User.findByIdAndUpdate(
+          userId,
+          { online: false, lastSeen: lastSeen },
+          { new: true }
+        );
+
+        socket.broadcast.emit("userStatusChanged", {
+          userId: user?._id.toString(),
+          online: false,
+          lastSeen: lastSeen,
+        });
+        console.log("Client disconnected: " + user?._id.toString());
+      } catch (error) {
+        console.log(error);
+      }
     });
   });
 }
