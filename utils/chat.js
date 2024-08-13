@@ -1,5 +1,5 @@
 const { GraphQLError } = require("graphql");
-const Chat = require("../models/Chat");
+const Chat = require("../models/chat");
 
 exports.findChatById = async (chatId, userId) => {
   const chat = await Chat.findById(chatId);
