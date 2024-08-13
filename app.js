@@ -8,6 +8,7 @@ const soketio = require("socket.io");
 const http = require("http");
 const cors = require("cors");
 const { readFileSync } = require("fs");
+const path = require('path');
 const mongoose = require("mongoose");
 const jwt = require("jsonwebtoken");
 const User = require("./models/user");
@@ -22,7 +23,7 @@ const { graphqlUploadExpress } = require("graphql-upload");
 const resolvers = require("./graphql/rootResolvers.js");
 const auth = require("./middlewares/auth.js");
 
-const typeDefs = readFileSync("./graphql/schema.graphql", "utf8");
+const typeDefs = readFileSync(path.join(__dirname, "graphql", "schema.graphql"), "utf8");
 
 const app = express();
 const httpServer = http.createServer(app);
