@@ -237,6 +237,11 @@ const authResolvers = {
           clearImage(oldAvatar, "chat-app");
         }
 
+        await user.populate({
+          path: "blockedUsers",
+          select: "_id name",
+        });
+
         return user;
       } catch (error) {
         return new GraphQLError(error);

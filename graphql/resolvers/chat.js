@@ -207,6 +207,13 @@ const chatResolvers = {
           },
         ]);
 
+        await chat.populate([
+          {
+            path: "users",
+            select: "_id name avatar",
+          },
+        ]);
+
         emitNewMessage(io, chat, message);
 
         return chat;
